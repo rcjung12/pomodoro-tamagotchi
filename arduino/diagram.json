@@ -47,10 +47,10 @@
     [ "btn3:1.r", "nano:GND.2", "black", [ "v0" ] ],
     [ "btn1:1.r", "nano:GND.2", "black", [ "v0" ] ],
     [ "btn2:1.r", "nano:GND.2", "black", [ "v0" ] ],
-    [ "btn1:2.r", "nano:3", "gold", [ "h0" ] ],
-    [ "btn2:2.r", "nano:2", "blue", [ "h0" ] ],
     [ "btn3:2.r", "nano:4", "red", [ "h0" ] ],
-    [ "oled1:VCC", "nano:5V", "red", [ "v0" ] ]
+    [ "oled1:VCC", "nano:5V", "red", [ "v0" ] ],
+    [ "btn1:2.r", "nano:3", "gold", [ "v0.4", "h77.6" ] ],
+    [ "btn2:2.r", "nano:2", "blue", [ "h0" ] ]
   ],
   "dependencies": {}
 }
