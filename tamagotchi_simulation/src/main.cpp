@@ -20,18 +20,19 @@ void setup() {
   display.clearDisplay();
 
 	// Load in menu icons
-	for(int step = 0; step < 5; step++){
-		int x = 8 + (step * 24);
-		Serial.println(x);
+	// for(int step = 0; step < 5; step++){
+	// 	int x = 8 + (step * 24);
+	// 	Serial.println(x);
 
-		display.drawBitmap(
-			x,
-			0,
-			bitmap_allArray[step],
-			16,16,
-			WHITE
-		);
-	}
+	// 	display.drawBitmap(
+	// 		x,
+	// 		0,
+	// 		bitmap_allArray[step],
+	// 		16,16,
+	// 		WHITE
+	// 	);
+	// }
+	reset_menu_icons();
 
 	// Load in miffy sprite
 	reset_miffy();
@@ -131,11 +132,12 @@ void pomodoro_timer(){
 // Main Loop
 // 
 void loop() {
-  check_button_press();
+	check_button_press();
 	display.display();
 	pomodoro_timer();
-	animate_item();
 
+	drink_action.run_animation();
+	// animate_item();
 	update_all_stats();
 	delay(10);
 }

@@ -1,6 +1,7 @@
 const long one_hour = 3600000;
 const long half_hour = 1800000;
 const long twenty_minutes = 1200000;
+const long one_minute = 10000;
 
 class Stat{
   public:
@@ -21,6 +22,7 @@ class Stat{
       if (time_elapsed >= decay_time && value > 0){
         value--;
         time_start = millis();
+        Serial.println(value);
       }
     }
 
@@ -29,12 +31,13 @@ class Stat{
       if(value > 4){
         value = 4;
       }
+      Serial.println(value);
     }
 };
 
 // Create objects
 Stat food(4, one_hour);
-Stat water(4, twenty_minutes);
+Stat water(4, one_minute);
 Stat happiness(4, half_hour);
 
 void update_all_stats(){
