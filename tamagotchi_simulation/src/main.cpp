@@ -72,7 +72,7 @@ void check_button_press() {
 // Pomordoro Timer
 // 
 
-String studying_string;
+const __FlashStringHelper* studying_string;
 unsigned long elapsed_time;
 
 long seconds;
@@ -90,11 +90,11 @@ void pomodoro_timer(){
 	// Set target time to the correct timer length
 	if (studying == true){
 		target_time = target_study_time;
-		studying_string = "Study!";
+		studying_string = F("Study!");
 	}
 	else{
 		target_time = target_break_time;
-		studying_string = "Break!";
+		studying_string = F("Break!");
 	}
 
 	// Check if user started the timer
@@ -110,14 +110,15 @@ void pomodoro_timer(){
 
 		// Display Timer
 		if (time_remaining > 0) {
-			// Display if studying/on break
 			display_text(studying_string, 0, 47, 1);
 			
-			char buffer[6]; // Space for "00:00" + null terminator
+			char buffer[6];
 			sprintf(buffer, "%02d:%02d", (int)minutes, (int)seconds);
-			String string_time = String(buffer);
 
-			display_text(string_time, 0, 56, 1);
+			display.setCursor(0, 56);
+			display.setTextSize(1);
+			display.setTextColor(WHITE, BLACK);
+			display.println(buffer);
 		}
 		// Reset and flip studying/break
 		else{

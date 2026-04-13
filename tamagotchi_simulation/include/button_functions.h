@@ -2,6 +2,9 @@
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_LENGTH, &Wire, OLED_RESET);
 
+// In stats screen
+bool in_stats_screen = false;
+
 int selection = -1;
 
 // 
@@ -14,6 +17,27 @@ void reset_miffy(){
 		48,48,
 		WHITE
 	);
+}
+
+// 
+// Reset Menu Icons
+// 
+void reset_menu_icons(){
+	// Load in menu icons
+	Serial.println("Resetting menu icons");
+	display.fillRect(0,0,128,16,BLACK);
+	for(int step = 0; step < 5; step++){
+		int x = 8 + (step * 24);
+		// Serial.println(x);
+
+		display.drawBitmap(
+			x,
+			0,
+			bitmap_allArray[step],
+			16,16,
+			WHITE
+		);
+	}
 }
 
 // 
@@ -60,6 +84,7 @@ int selection_step = 0;
 int previous_x = 8;
 
 void left_function() {
+	if (in_stats_screen == true) return;
 	int x = 8 + (selection_step * 24);
 	// Selection highlight
 	for(int i = 0; i < 5; i++) {
@@ -78,7 +103,7 @@ void left_function() {
 			if(i != 0 || previous_x != 8){
 
 				// Set previous bitmap to 4
-				if(previous_bitmap == -1 ) {previous_bitmap = 4;}
+				if(previous_bitmap == -1) {previous_bitmap = 4;}
 
 				// Clear previous icon
 				display.fillRect(
@@ -120,7 +145,7 @@ unsigned long start_time = 0;
 bool studying = false;
 bool resetting = false;
 
-void display_text(String input_text, int x, int y, int size){
+void display_text(const __FlashStringHelper* input_text, int x, int y, int size){
 	display.setCursor(x, y);
 	display.setTextSize(size);
 	display.setTextColor(WHITE, BLACK);
@@ -171,7 +196,7 @@ class Action{
 Action drink_action(bitmap_water_bottle_anim_array,bitmap_water_bottle_anim_len);
 
 void eat(){
-	display_text("Eat   ", 0, 16, 1);
+	display_text(F("Eat   "), 0, 16, 1);
 	food.increase(1);
 }
 
@@ -188,11 +213,11 @@ void drink(){
 }
 
 void light_toggle(){
-	display_text("Light   ", 0, 16, 1);
+	display_text(F("Light   "), 0, 16, 1);
 }
 
 void game(){
-	display_text("Game   ", 0, 16, 1);
+	display_text(F("Game   "), 0, 16, 1);
 	happiness.increase(3);
 }
 
@@ -204,8 +229,9 @@ void clock(){
 	}
 	// Prompt cancel confirm
 	else if (resetting == false) {
-		display_text("Confirm Stop Timer?", 0, 16, 1);
+		display_text(F("Confirm Stop Timer?"), 0, 16, 1);
 		resetting = true;
+		return;
 	}
 	// Cancel Timer
 	else if (resetting == true) {
@@ -237,32 +263,52 @@ void middle_function(){
 ////////////////////////////////////
 ////////// Right Function //////////
 ////////////////////////////////////
-void reset_menu_icons(){
-	// Load in menu icons
-	Serial.println("Resetting menu icons");
-	display.fillRect(0,0,128,16,BLACK);
-	for(int step = 0; step < 5; step++){
-		int x = 8 + (step * 24);
-		// Serial.println(x);
+struct stat_data
+{
+	int* value;
+	const unsigned char* bitmap;
+};
 
-		display.drawBitmap(
-			x,
-			0,
-			bitmap_allArray[step],
-			16,16,
-			WHITE
-		);
-	}
-}
+stat_data stats_value_array[3] = {
+	{&food.value, bitmap_allArray[0]},
+	{&water.value, bitmap_allArray[1]},
+	{&happiness.value, bitmap_allArray[3]}
+};
+
+int amount_of_stats = sizeof(stats_value_array) / sizeof(stats_value_array[0]);
 
 void right_function(){
-	Serial.println("Right");
 	if (selection >= 0) {
-		selection = 0;
+		selection = -1;
 		selection_step = 0;
 		Serial.println(selection);
 		previous_x = 8;
 
 		reset_menu_icons();
+	}
+	else {
+		// Enter stats screen
+		if (in_stats_screen == false){
+			// Clear screen
+			display.fillRect(0,0,128,64,BLACK);
+
+			display_text(F("Health"),32,0,2);
+			for (int i=0; i<amount_of_stats; i++) {
+				int bar_position = 16 + (16 * i);
+
+				// Serial.println(*stats_value_array[i].value);
+				display.drawBitmap(0,bar_position, stats_value_array[i].bitmap, 16, 16, WHITE);
+				display.drawBitmap(0,bar_position, icon_stat_bar_allArray[*stats_value_array[i].value],128,16,WHITE);
+			}
+			in_stats_screen = !in_stats_screen;
+		}
+		// Exit stats screen
+		else{
+			// Go back to miffy
+			reset_menu_icons();
+			display.fillRect(0,16,128,48,BLACK);
+			reset_miffy();
+			in_stats_screen = !in_stats_screen;
+		}
 	}
 }
