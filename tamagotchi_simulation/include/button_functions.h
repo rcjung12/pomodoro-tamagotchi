@@ -194,9 +194,10 @@ class Action{
 
 // Create action object
 Action drink_action(bitmap_water_bottle_anim_array,bitmap_water_bottle_anim_len);
+Action eat_action(apple_bitmap_allArray,apple_bitmap_allArray_LEN);
 
 void eat(){
-	display_text(F("Eat   "), 0, 16, 1);
+	eat_action.start_action();
 	food.increase(1);
 }
 
@@ -278,6 +279,7 @@ stat_data stats_value_array[3] = {
 int amount_of_stats = sizeof(stats_value_array) / sizeof(stats_value_array[0]);
 
 void right_function(){
+	resetting = false;
 	if (selection >= 0) {
 		selection = -1;
 		selection_step = 0;

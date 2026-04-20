@@ -138,6 +138,7 @@ void loop() {
 	pomodoro_timer();
 
 	drink_action.run_animation();
+	eat_action.run_animation();
 	// animate_item();
 	update_all_stats();
 	delay(10);
