@@ -5,6 +5,9 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_LENGTH, &Wire, OLED_RESET);
 // In stats screen
 bool in_stats_screen = false;
 
+// In sleep mode
+bool in_sleep_mode = false;
+
 int selection = -1;
 
 // 
@@ -84,7 +87,9 @@ int selection_step = 0;
 int previous_x = 8;
 
 void left_function() {
+	if (in_sleep_mode == true) return;
 	if (in_stats_screen == true) return;
+
 	int x = 8 + (selection_step * 24);
 	// Selection highlight
 	for(int i = 0; i < 5; i++) {
@@ -141,6 +146,21 @@ void left_function() {
 ////////////////////////////////////////////////
 ////////// Middile Function (Confirm) //////////
 ////////////////////////////////////////////////
+
+// 
+// Reset Entire Menu
+// 
+
+void reset_entire_menu(){
+	// Resets the menu icons and positioning
+	selection = -1;
+	selection_step = 0;
+	Serial.println(selection);
+	previous_x = 8;
+
+	reset_menu_icons();
+}
+
 unsigned long start_time = 0;
 bool studying = false;
 bool resetting = false;
@@ -214,7 +234,14 @@ void drink(){
 }
 
 void light_toggle(){
-	display_text(F("Light   "), 0, 16, 1);
+	in_sleep_mode = !in_sleep_mode;
+	if (in_sleep_mode == true) {
+		display.fillRect(0,0,128,64,BLACK);
+	}
+	else {
+		reset_entire_menu();
+		reset_miffy();
+	}
 }
 
 void game(){
@@ -279,14 +306,10 @@ stat_data stats_value_array[3] = {
 int amount_of_stats = sizeof(stats_value_array) / sizeof(stats_value_array[0]);
 
 void right_function(){
+	if (in_sleep_mode == true) return;
 	resetting = false;
 	if (selection >= 0) {
-		selection = -1;
-		selection_step = 0;
-		Serial.println(selection);
-		previous_x = 8;
-
-		reset_menu_icons();
+		reset_entire_menu();
 	}
 	else {
 		// Enter stats screen
