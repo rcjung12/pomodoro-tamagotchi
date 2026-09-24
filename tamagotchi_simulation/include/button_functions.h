@@ -5,8 +5,12 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_LENGTH, &Wire, OLED_RESET);
 // In stats screen
 bool in_stats_screen = false;
 
-// In sleep mode
+// Sleep/Light values
 bool in_sleep_mode = false;
+bool sleep_locked = false;
+
+// Game values
+bool game_locked = false;
 
 int selection = -1;
 
@@ -165,10 +169,10 @@ unsigned long start_time = 0;
 bool studying = false;
 bool resetting = false;
 
-void display_text(const __FlashStringHelper* input_text, int x, int y, int size){
+void display_text(const __FlashStringHelper* input_text, int x, int y, int size, bool color){
 	display.setCursor(x, y);
 	display.setTextSize(size);
-	display.setTextColor(WHITE, BLACK);
+	display.setTextColor(color ? WHITE : BLACK, color ? BLACK: WHITE);
 	display.println(input_text);
 }
 
@@ -179,34 +183,43 @@ class Action{
 		
 		int anim_current_frame;
 		bool anim_running;
+		bool animation_toggled;
 		long last_frame_time;
 
-		int anim_x = 16;
-		int anim_y = 16;
+		bool anim_pending_reset;
+
+		// int anim_x = 16;
+		// int anim_y = 16;
 
 	Action(const unsigned char** animation_bitmap, const int animation_size) : current_animation(animation_bitmap), anim_size(animation_size){
 		anim_current_frame = 0;
 		anim_running = false;
+		anim_pending_reset = false;
 	}
 
 	void start_action(){
 		anim_running = true;
 	}
 
-	void run_animation(){
-		if (millis() - last_frame_time >= 250 && anim_running == true) {
+	void toggle_animation(){
+		animation_toggled = !animation_toggled;
+	}
+
+	void run_animation(int anim_x, int anim_y, int size_x, int size_y){
+		if (millis() - last_frame_time >= 250 && (anim_running == true|| animation_toggled == true)) {
 			last_frame_time = millis();
 
-			display.fillRect(anim_x,anim_y,16,16,BLACK);
-			display.drawBitmap(anim_x, anim_y, current_animation[anim_current_frame], 16, 16, WHITE);
+			display.fillRect(anim_x,anim_y,size_x,size_y,BLACK);
+			display.drawBitmap(anim_x, anim_y, current_animation[anim_current_frame], size_x, size_y, WHITE);
 
 			anim_current_frame++;
 
 			// End animation
-			if (anim_current_frame > anim_size){
+			if (anim_current_frame >= anim_size){
 				anim_current_frame = 0;
 				anim_running = false;
-				display.fillRect(anim_x,anim_y,16,16,BLACK);
+				if (animation_toggled == false) display.fillRect(anim_x,anim_y,size_x,size_y,BLACK);
+				anim_pending_reset = true;
 			}
 		}
 	}
@@ -215,6 +228,7 @@ class Action{
 // Create action object
 Action drink_action(bitmap_water_bottle_anim_array,bitmap_water_bottle_anim_len);
 Action eat_action(apple_bitmap_allArray,apple_bitmap_allArray_LEN);
+Action sleep_action(sleeping_anim_allArray,sleeping_anim_allArray_LEN);
 
 void eat(){
 	eat_action.start_action();
@@ -233,37 +247,48 @@ void drink(){
 	water.increase(2);
 }
 
-void light_toggle(){
-	in_sleep_mode = !in_sleep_mode;
-	if (in_sleep_mode == true) {
-		display.fillRect(0,0,128,64,BLACK);
-	}
-	else {
-		reset_entire_menu();
-		reset_miffy();
+void light_toggle() {
+	if (!sleep_locked) {
+		in_sleep_mode = !in_sleep_mode;
+		sleep_action.toggle_animation();
+
+		if (in_sleep_mode) {
+			display.fillRect(0, 0, 128, 64, BLACK);
+		} else {
+			// Exiting sleep mode — clear and redraw
+			display.fillRect(0, 0, 128, 64, BLACK);
+			reset_entire_menu();
+			reset_miffy();
+			display.display();
+		}
 	}
 }
 
 void game(){
-	display_text(F("Game   "), 0, 16, 1);
-	happiness.increase(3);
+	if (!game_locked) {
+		display_text(F("Game   "), 0, 16, 1, true);
+		happiness.increase(3);
+	}
 }
 
-void clock(){
+void pomodoro_clock(){
 	// Start studying timer
 	if (start_time == 0){
+		sleep_locked = game_locked = true;
+
 		studying = true;
 		start_time = millis();
 	}
 	// Prompt cancel confirm
 	else if (resetting == false) {
-		display_text(F("Confirm Stop Timer?"), 0, 16, 1);
+		display_text(F("Confirm Stop Timer?"), 0, 16, 1, true);
 		resetting = true;
 		return;
 	}
 	// Cancel Timer
 	else if (resetting == true) {
 		start_time = 0;
+		sleep_locked = game_locked = false;
 
 		// Reset screen
 		display.fillRect(0,16, 128, 48, BLACK);
@@ -278,7 +303,7 @@ void (*selection_functions[])() = {
   drink,
   light_toggle,
   game,
-  clock
+  pomodoro_clock
 };
 
 void middle_function(){
@@ -317,7 +342,7 @@ void right_function(){
 			// Clear screen
 			display.fillRect(0,0,128,64,BLACK);
 
-			display_text(F("Health"),32,0,2);
+			display_text(F("Health"),32,0,2, true);
 			for (int i=0; i<amount_of_stats; i++) {
 				int bar_position = 16 + (16 * i);
 

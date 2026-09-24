@@ -37,7 +37,7 @@ class Stat{
 
 // Create objects
 Stat food(4, one_hour);
-Stat water(4, one_minute);
+Stat water(4, twenty_minutes);
 Stat happiness(4, half_hour);
 
 void update_all_stats(){

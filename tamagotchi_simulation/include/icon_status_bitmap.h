@@ -1,4 +1,8 @@
-#include <avr/pgmspace.h>
+#ifdef __AVR__
+  #include <avr/pgmspace.h>
+#else
+  #include <pgmspace.h>
+#endif
 
 // 'icon_status_bar_1', 128x16px
 const unsigned char icon_stat_bar_icon_status_bar_1 [] PROGMEM = {

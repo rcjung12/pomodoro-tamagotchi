@@ -5,6 +5,7 @@
 #include <Adafruit_SSD1306.h>
 
 #include "miffy_bitmaps.h"
+#include "miffy_sleeping_bitmaps.h"
 #include "menu_bitmaps.h"
 #include "icon_status_bitmap.h"
 #include "item_bitmaps.h"
