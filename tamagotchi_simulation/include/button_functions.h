@@ -1,7 +1,5 @@
 #include "project_includes.h"
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_LENGTH, &Wire, OLED_RESET);
-
 // In stats screen
 bool in_stats_screen = false;
 
@@ -11,41 +9,6 @@ bool sleep_locked = false;
 
 // Game values
 bool game_locked = false;
-
-int selection = -1;
-
-// 
-// Reset Miffy
-// 
-void reset_miffy(){
-	display.drawBitmap(
-		40,16,
-		bitmap_miffy,
-		48,48,
-		WHITE
-	);
-}
-
-// 
-// Reset Menu Icons
-// 
-void reset_menu_icons(){
-	// Load in menu icons
-	Serial.println("Resetting menu icons");
-	display.fillRect(0,0,128,16,BLACK);
-	for(int step = 0; step < 5; step++){
-		int x = 8 + (step * 24);
-		// Serial.println(x);
-
-		display.drawBitmap(
-			x,
-			0,
-			bitmap_allArray[step],
-			16,16,
-			WHITE
-		);
-	}
-}
 
 // 
 // Animate Function
@@ -81,69 +44,94 @@ void animate_item(){
 	}
 }
 
+// Display timer increment settings
+void display_increments() {
+	display.fillRect(0,0,128,64,BLACK);
+	display_text(F("+5"), 8, 8, 1, true);
+	display_text(F("OK"), 8, 28, 1, true);
+	display_text(F("-5"), 8, 48, 1, true);
+	if (count_timers_set == 1) {
+		display_text(F("Set Study Time"), 32, 8, 1, true);
+	}
+	else if (count_timers_set == 2) {
+		display_text(F("Set Break Time"), 32, 8 ,1, true);
+	}
+	char buffer[12];
+	snprintf_P(buffer, sizeof(buffer), PSTR("%02d minutes"), (int)input_pomodoro_times[count_timers_set]);
+	display_time(buffer, 44, 28, 1, true);
+}
+
 ////////////////////////////////////////////
 ////////// Left Function (Select) //////////
 ////////////////////////////////////////////
 
 // Selection Step
 // 5 = feed, 6 = drink, 7 = light, 8 = game, 9 = clock
-int selection_step = 0;
-int previous_x = 8;
 
 void left_function() {
 	if (in_sleep_mode == true) return;
 	if (in_stats_screen == true) return;
 
-	int x = 8 + (selection_step * 24);
-	// Selection highlight
-	for(int i = 0; i < 5; i++) {
-		if(i == selection_step) {
+	// Default functionality of left button
+	if (!setting_clock_intervals) {
+		int x = 8 + (selection_step * 24);
+		// Selection highlight
+		for(int i = 0; i < 5; i++) {
+			if(i == selection_step) {
 
-			// Highlight current
-			display.drawBitmap(
-				x,0,
-				bitmap_allArray[i + 5],
-				16, 16,
-				WHITE
-			);
-
-			// Unhighlight previous
-			int previous_bitmap = i - 1;
-			if(i != 0 || previous_x != 8){
-
-				// Set previous bitmap to 4
-				if(previous_bitmap == -1) {previous_bitmap = 4;}
-
-				// Clear previous icon
-				display.fillRect(
-					previous_x, 0,
-					16, 16,
-					BLACK
-				);
-
-				// Draw unselected icon
+				// Highlight current
 				display.drawBitmap(
-					previous_x, 0,
-					bitmap_allArray[previous_bitmap],
+					x,0,
+					bitmap_allArray[i + 5],
 					16, 16,
 					WHITE
 				);
-			}
 
-			// Return as a "page" for middle button
-			selection = i;
+				// Unhighlight previous
+				int previous_bitmap = i - 1;
+				if(i != 0 || previous_x != 8){
+
+					// Set previous bitmap to 4
+					if(previous_bitmap == -1) {previous_bitmap = 4;}
+
+					// Clear previous icon
+					display.fillRect(
+						previous_x, 0,
+						16, 16,
+						BLACK
+					);
+
+					// Draw unselected icon
+					display.drawBitmap(
+						previous_x, 0,
+						bitmap_allArray[previous_bitmap],
+						16, 16,
+						WHITE
+					);
+				}
+
+				// Return as a "page" for middle button
+				selection = i;
+			}
+		}
+
+		// Set previous x to current x
+		previous_x = x;
+
+		// Increase selection step / Reset selection step
+		if(selection_step == 4){
+			selection_step = 0;
+		}
+		else{
+			selection_step++;
 		}
 	}
 
-	// Set previous x to current x
-	previous_x = x;
-
-	// Increase selection step / Reset selection step
-	if(selection_step == 4){
-		selection_step = 0;
-	}
-	else{
-		selection_step++;
+	// In setting clock intervals; increase time
+	else if (setting_clock_intervals) {
+		input_pomodoro_times[count_timers_set] += timer_interval_increment;
+		display_increments();
+		Serial.println("New time " + String(input_pomodoro_times[count_timers_set]));
 	}
 }
 
@@ -151,30 +139,9 @@ void left_function() {
 ////////// Middile Function (Confirm) //////////
 ////////////////////////////////////////////////
 
-// 
-// Reset Entire Menu
-// 
-
-void reset_entire_menu(){
-	// Resets the menu icons and positioning
-	selection = -1;
-	selection_step = 0;
-	Serial.println(selection);
-	previous_x = 8;
-
-	reset_menu_icons();
-}
-
 unsigned long start_time = 0;
 bool studying = false;
 bool resetting = false;
-
-void display_text(const __FlashStringHelper* input_text, int x, int y, int size, bool color){
-	display.setCursor(x, y);
-	display.setTextSize(size);
-	display.setTextColor(color ? WHITE : BLACK, color ? BLACK: WHITE);
-	display.println(input_text);
-}
 
 class Action{
 	public:
@@ -272,30 +239,64 @@ void game(){
 }
 
 void pomodoro_clock(){
-	// Start studying timer
-	if (start_time == 0){
-		sleep_locked = game_locked = true;
+	// Enter clock interval editor
+	if (!setting_clock_intervals && !timer_active) {
+		Serial.println("Enter clock interval edit");
+		// Display the increments on screen
+		display_increments();
+		setting_clock_intervals = true;
 
-		studying = true;
-		start_time = millis();
 	}
-	// Prompt cancel confirm
-	else if (resetting == false) {
-		display_text(F("Confirm Stop Timer?"), 0, 16, 1, true);
-		resetting = true;
-		return;
+	// Confirm time then activate timer
+	if (setting_clock_intervals && !timer_active && count_timers_set < 3) {
+		target_study_time = input_pomodoro_times[1] * min_mil_multiplier;
+		target_break_time = input_pomodoro_times[2] * min_mil_multiplier;
+		Serial.println("Before: " + String(count_timers_set));
+		count_timers_set++;
+		display_increments();
+		Serial.println("After: " + String(count_timers_set));
 	}
-	// Cancel Timer
-	else if (resetting == true) {
-		start_time = 0;
-		sleep_locked = game_locked = false;
+	// Both timers set, start timer
+	if (setting_clock_intervals && !timer_active && count_timers_set >= 3) {
+			timer_active = true;
+			setting_clock_intervals = false;
+			display.fillRect(0, 0, 128, 64, BLACK);
+			reset_entire_menu();
+			reset_miffy();
+	}
 
-		// Reset screen
-		display.fillRect(0,16, 128, 48, BLACK);
-		reset_miffy();
+	// Once intervals are set, start timer
+	if (!setting_clock_intervals && timer_active) {
+		// Start studying timer
+		if (start_time == 0){
+			sleep_locked = game_locked = true;
 
-		resetting = false;
+			studying = true;
+			start_time = millis();
+		}
+		// Prompt cancel confirm
+		else if (resetting == false) {
+			display_text(F("Confirm Stop Timer?"), 0, 16, 1, true);
+			resetting = true;
+			return;
+		}
+		// Cancel Timer
+		else if (resetting == true) {
+			start_time = 0;
+			sleep_locked = game_locked = false;
+
+			// Reset screen
+			display.fillRect(0,16, 128, 48, BLACK);
+			reset_miffy();
+
+			resetting = false;
+			timer_active = false;
+			count_timers_set = 0;
+		}
 	}
+
+	Serial.println("Study:" + String(target_study_time) + " Break:" + String(target_break_time));
+	Serial.println(String(setting_clock_intervals) + " " + String(timer_active) + " " + String(count_timers_set));
 }
 
 void (*selection_functions[])() = {
@@ -331,34 +332,45 @@ stat_data stats_value_array[3] = {
 int amount_of_stats = sizeof(stats_value_array) / sizeof(stats_value_array[0]);
 
 void right_function(){
-	if (in_sleep_mode == true) return;
-	resetting = false;
-	if (selection >= 0) {
-		reset_entire_menu();
-	}
-	else {
-		// Enter stats screen
-		if (in_stats_screen == false){
-			// Clear screen
-			display.fillRect(0,0,128,64,BLACK);
-
-			display_text(F("Health"),32,0,2, true);
-			for (int i=0; i<amount_of_stats; i++) {
-				int bar_position = 16 + (16 * i);
-
-				// Serial.println(*stats_value_array[i].value);
-				display.drawBitmap(0,bar_position, stats_value_array[i].bitmap, 16, 16, WHITE);
-				display.drawBitmap(0,bar_position, icon_stat_bar_allArray[*stats_value_array[i].value],128,16,WHITE);
-			}
-			in_stats_screen = !in_stats_screen;
+	if (!setting_clock_intervals) {
+		if (in_sleep_mode == true) return;
+		resetting = false;
+		if (selection >= 0) {
+			reset_entire_menu();
 		}
-		// Exit stats screen
-		else{
-			// Go back to miffy
-			reset_menu_icons();
-			display.fillRect(0,16,128,48,BLACK);
-			reset_miffy();
-			in_stats_screen = !in_stats_screen;
+		else {
+			// Enter stats screen
+			if (in_stats_screen == false){
+				// Clear screen
+				display.fillRect(0,0,128,64,BLACK);
+
+				display_text(F("Health"),32,0,2, true);
+				for (int i=0; i<amount_of_stats; i++) {
+					int bar_position = 16 + (16 * i);
+
+					// Serial.println(*stats_value_array[i].value);
+					display.drawBitmap(0,bar_position, stats_value_array[i].bitmap, 16, 16, WHITE);
+					display.drawBitmap(0,bar_position, icon_stat_bar_allArray[*stats_value_array[i].value],128,16,WHITE);
+				}
+				in_stats_screen = !in_stats_screen;
+			}
+			// Exit stats screen
+			else{
+				// Go back to miffy
+				reset_menu_icons();
+				display.fillRect(0,16,128,48,BLACK);
+				reset_miffy();
+				in_stats_screen = !in_stats_screen;
+			}
+		}
+	}
+
+	// In setting clock intervals; decrease time
+	else if (setting_clock_intervals) {
+		if (input_pomodoro_times[count_timers_set] >= 5) {
+			input_pomodoro_times[count_timers_set] -= timer_interval_increment;
+			display_increments();
+			Serial.println("New time " + String(input_pomodoro_times[count_timers_set]));
 		}
 	}
 }

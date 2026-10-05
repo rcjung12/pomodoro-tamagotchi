@@ -10,12 +10,9 @@
 #include "icon_status_bitmap.h"
 #include "item_bitmaps.h"
 #include "stats.h"
+#include "pomodoro_variables.h"
+#include "graphics_functions.h"
 
 #define button_left 2
 #define button_middle 3
 #define button_right 4
-
-#define SCREEN_WIDTH 128
-#define SCREEN_LENGTH 64
-
-#define OLED_RESET -1
